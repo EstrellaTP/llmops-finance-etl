@@ -4,3 +4,4 @@ requests==2.31.0
 google-generativeai==0.3.2
 google-cloud-bigquery==3.17.0
 python-dotenv==1.0.1
+pyarrow==25.0.0

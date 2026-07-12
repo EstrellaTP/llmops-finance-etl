@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 import os
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 load_dotenv()
 NEWS_API = os.getenv("NEWS_API_KEY")
@@ -27,8 +28,9 @@ def get_data(ticker):
     """
     try: 
         bussiness = yf.Ticker(ticker)
-        data = bussiness.history(period = "1mo")
+        data = bussiness.history(period = "1d")
         filt_data = data[["Close", "Volume"]].reset_index()
+        filt_data["Ticker"] = ticker
         return filt_data
     
     except Exception as e:
@@ -48,7 +50,15 @@ def get_news(topic):
         the retrieved news articles and metadata.
     """
     try: 
-        url = f"https://newsapi.org/v2/everything?q={topic}&apiKey={NEWS_API}"
+        date_7_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+
+        url = (f"https://newsapi.org/v2/everything?"
+               f"q={topic}&"
+               f"from={date_7_days_ago}&"
+               f"sortBy=publishedAt&"
+               f"pageSize=50&"
+               f"apiKey={NEWS_API}")
+        
         output = requests.get(url)
         return output.json()
     
