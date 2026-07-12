@@ -29,49 +29,35 @@ def analyze_sentiment(news_data):
         for i in news_lst:
             news_titles.append(i["title"])
 
-        scores = []
-        for title in news_titles:
-            prompt = f"""
-                You are an expert financial analyst. Your task is to classify the market sentiment of the following stock market news headline.
+        bloque_titulares = "\n- ".join(news_titles)
+        prompt = f"""
+        You are an expert financial analyst. Your task is to evaluate the overall daily market sentiment based on the following list of news headlines.
 
-                Strict rule: You must respond ONLY with a single integer. Do not add any extra text, explanations, or punctuation.
-                1 = Positive (indicates a potential price increase or good news)
-                0 = Neutral (informative, no clear market impact)
-                -1 = Negative (indicates a potential price decrease or bad news)
+        Strict rule: You must respond ONLY with a single float number between -1.0 and 1.0. Do not add any extra text, explanations, or punctuation.
+        -1.0 = Extremely Negative (panic, potential price drops)
+        0.0 = Neutral (informative, mixed signals, no clear market impact)
+        1.0 = Extremely Positive (euphoria, potential price increases)
 
-                Examples:
-                Headline: "Apple reports record third-quarter profits"
-                Response: 1
+        Headlines for today:
+        - {bloque_titulares}
 
-                Headline: "Stock market closes flat ahead of inflation data"
-                Response: 0
+        Response:
+        """
 
-                Headline: "Shares tumble 5% following antitrust lawsuit"
-                Response: -1
-
-                Headline: "{title}"
-                Response:
-                """
-            answer = model.generate_content(prompt)
-
-            score = int(answer.text.strip())
-
-            scores.append(score)
-
-        return scores
+        answer = model.generate_content(prompt)
+        final_score = float(answer.text.strip())
+        
+        return final_score
     
     except Exception as e:
         print(f"Error on analysis of sentiment: {e}")
-        return []
+        return 0.0
     
 
-def merge_data(financial_filt_data, sentiment_scores):
+def merge_data(financial_filt_data, sentiment_score):
     try:
-        if not sentiment_scores:
-            financial_filt_data["Sentiment"] = 0
-        else:
-            avg_sentiment = sum(sentiment_scores) / len(sentiment_scores)
-            financial_filt_data["Sentiment"] = avg_sentiment
+        financial_filt_data["Sentiment"] = sentiment_score
+        
         return financial_filt_data
     
     except Exception as e:
