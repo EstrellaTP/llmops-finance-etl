@@ -1,0 +1,33 @@
+name: Daily Finance ETL Pipeline
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: 
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Build Docker Image
+        run: docker build -t finance-etl .
+
+      - name: Create GCP Credentials File
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS }}' > gcp-key.json
+
+      - name: Run Docker Container
+        env:
+          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          GEMINI_API: ${{ secrets.GEMINI_API }}
+        run: >
+          docker run 
+          -e NEWS_API_KEY 
+          -e GEMINI_API 
+          -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-key.json 
+          -v ${{ github.workspace }}/gcp-key.json:/app/gcp-key.json 
+          finance-etl
