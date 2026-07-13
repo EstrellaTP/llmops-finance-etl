@@ -10,7 +10,17 @@ load_dotenv()
 genai.configure(api_key = os.getenv("GEMINI_API"))
 
 
-def clean_financial_data(filt_data):
+def clean_financial_data(filt_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Cleans and standardizes raw financial market data.
+
+    Args:
+        filt_data (pd.DataFrame): Raw dataframe containing 'Date', 'Close', and 'Volume'.
+
+    Returns:
+        pd.DataFrame: Cleaned dataframe with datetime formatting and dropped null values.
+    """
+
     try: 
         filt_data["Date"] = pd.to_datetime(filt_data["Date"])
         filt_data_clean = filt_data.dropna()
@@ -20,7 +30,19 @@ def clean_financial_data(filt_data):
         print(f"Error cleaning data: {e}")
         return pd.DataFrame()
     
-def analyze_sentiment(news_data):
+    
+def analyze_sentiment(news_data: dict) -> float:
+    """
+    Evaluates daily market sentiment from a batch of news headlines using Gemini AI.
+
+    Args:
+        news_data (dict): JSON-like dictionary containing retrieved news articles.
+
+    Returns:
+        float: A sentiment score between -1.0 (Extremely Negative) and 1.0 (Extremely Positive).
+               Returns 0.0 in case of an API failure or neutral sentiment.
+    """
+
     try:
         model = genai.GenerativeModel("gemini-3.5-flash")
 
@@ -54,7 +76,18 @@ def analyze_sentiment(news_data):
         return 0.0
     
 
-def merge_data(financial_filt_data, sentiment_score):
+def merge_data(financial_filt_data: pd.DataFrame, sentiment_score: float) -> pd.DataFrame:
+    """
+    Merges the quantitative financial data with the qualitative sentiment score.
+
+    Args:
+        financial_filt_data (pd.DataFrame): Cleaned financial dataframe.
+        sentiment_score (float): Calculated market sentiment score.
+
+    Returns:
+        pd.DataFrame: Final enriched dataframe ready for data warehouse loading.
+    """
+
     try:
         financial_filt_data["Sentiment"] = sentiment_score
         
@@ -65,19 +98,19 @@ def merge_data(financial_filt_data, sentiment_score):
         return financial_filt_data
     
 if __name__ == "__main__":
-    # Prueba de integración de la Fase 2
-    print("--- Probando Pipeline de Transformación ---")
     
-    # 1. Simulación de datos (Mocking)
+    print("--- Mock Transformation ---")
+    
+    
     mock_financial = pd.DataFrame({'Date': ['2026-07-12'], 'Close': [150.0], 'Volume': [1000]})
     mock_news = {"articles": [{"title": "Apple hits record profits"}, {"title": "Market flat"}]}
     
-    # 2. Ejecución
+    
     clean_df = clean_financial_data(mock_financial)
     scores = analyze_sentiment(mock_news)
     final_df = merge_data(clean_df, scores)
     
-    print("DataFrame Final Resultante:")
+    print("DataFrame Final Result:")
     print(final_df)
 
 

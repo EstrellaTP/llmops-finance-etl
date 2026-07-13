@@ -68,6 +68,7 @@ def get_news(topic):
 
 
 if __name__ == "__main__":
+    print("--- Mock extraction ---")
     print("Extracting Data...")
     
     stock_data = get_data("AAPL")

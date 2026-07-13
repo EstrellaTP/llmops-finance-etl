@@ -7,6 +7,16 @@ from google.cloud import bigquery
 load_dotenv()
 
 def load_to_bigquery(df):
+    """
+    Loads enriched financial data into Google BigQuery using an idempotent 'Delete & Append' strategy.
+
+    Args:
+        df (pd.DataFrame): The final dataframe containing 'Date', 'Ticker', 'Close', 'Volume', and 'Sentiment'.
+
+    Returns:
+        bool: True if the load operation was successful, False otherwise.
+    """
+
     try:
         client_bq = bigquery.Client()
         print("GCP conection established")
@@ -62,7 +72,6 @@ def load_to_bigquery(df):
 
         return True
 
-
     except Exception as e:
         print(f"Error with Google Cloud: {e} .")
 
@@ -70,9 +79,9 @@ def load_to_bigquery(df):
 
 
 if __name__ == "__main__":
-    print("--- Probando Inserción de Datos ---")
+    print("--- Mock Data Insertion ---")
     
-    # Creamos un DataFrame falso simulando lo que escupiría transform.py
+    
     mock_data = pd.DataFrame({
         'Date': pd.to_datetime(['2026-07-12']), 
         'Ticker': ['AAPL'],
@@ -81,5 +90,6 @@ if __name__ == "__main__":
         'Sentiment': [0.8]
     })
     
-    # Llamamos a la función
-    load_to_bigquery(mock_data)
+    success = load_to_bigquery(mock_data)
+    if success:
+        print("Mock data processed and architecture evaluated successfully.")
