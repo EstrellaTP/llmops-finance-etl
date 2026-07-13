@@ -31,7 +31,7 @@ def clean_financial_data(filt_data: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     
     
-def analyze_sentiment(news_data: dict) -> float:
+def analyze_sentiment(news_data: dict) -> float | None:
     """
     Evaluates daily market sentiment from a batch of news headlines using Gemini AI.
 
@@ -73,10 +73,10 @@ def analyze_sentiment(news_data: dict) -> float:
     
     except Exception as e:
         print(f"Error on analysis of sentiment: {e}")
-        return 0.0
+        return None
     
 
-def merge_data(financial_filt_data: pd.DataFrame, sentiment_score: float) -> pd.DataFrame:
+def merge_data(financial_filt_data: pd.DataFrame, sentiment_score: float | None) -> pd.DataFrame:
     """
     Merges the quantitative financial data with the qualitative sentiment score.
 

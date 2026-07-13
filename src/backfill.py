@@ -169,7 +169,7 @@ if __name__ == "__main__":
     for ticker, topic in STOCKS_TO_TRACK.items():
         print(f" Launching backfill for: {ticker} - {topic}")
         
-        execute_backfilling_pipeline(ticker, topic, 25, "2026-07-12")
+        execute_backfilling_pipeline(ticker, topic, 1, "2026-07-09")
         
         print(f"Cooling down API limits before next company...")
         time.sleep(10)
