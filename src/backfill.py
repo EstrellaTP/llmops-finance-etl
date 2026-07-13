@@ -172,7 +172,7 @@ if __name__ == "__main__":
         execute_backfilling_pipeline(ticker, topic, 1, "2026-07-09")
         
         print(f"Cooling down API limits before next company...")
-        time.sleep(30)
+        time.sleep(40)
 
 
         
