@@ -77,10 +77,102 @@ def execute_backfilling_pipeline(ticker, topic, days_back, end_date_str):
     except Exception as e:
         print("Error initializing backfill pipeline.")
 
+STOCKS_TO_TRACK = {
+    # Materias Primas
+    "GC=F": "Gold market",              
+    "SI=F": "Silver market",            
+    "HG=F": "Copper market",            
+    "CL=F": "Crude oil market",         
+    "NG=F": "Natural Gas market",       
+    "ZC=F": "Corn market",              
+    "ZW=F": "Wheat market",             
+    "CC=F": "Cocoa market",             
+    "KC=F": "Coffee market",            
+    
+    # Índices Globales
+    "^GSPC": "S&P 500 index",           
+    "^DJI": "Dow Jones index",          
+    "^IXIC": "Nasdaq index",            
+    "^N225": "Nikkei 225 index",        
+    "^FTSE": "FTSE 100 index",          
+    "^GDAXI": "DAX index",              
+    "^IBEX": "IBEX 35 index",           
+    
+    # Automoción
+    "TSLA": "Tesla company",
+    "TM": "Toyota Motors",
+    "F": "Ford Motor company",
+    "GM": "General Motors",
+    "RACE": "Ferrari company",
+    "HMC": "Honda Motors",
+    "VOW3.DE": "Volkswagen company",
+    "MBG.DE": "Mercedes-Benz company",
+    "STLA": "Stellantis company",
+    
+    # Energía
+    "XOM": "ExxonMobil",
+    "CVX": "Chevron company",
+    "SHEL": "Shell oil company",
+    "TTE": "TotalEnergies",
+    "BP": "BP oil company",
+    "ENPH": "Enphase Energy",           
+    "NEE": "NextEra Energy",            
+    "IBE.MC": "Iberdrola company",      
+    
+    # Tecnología e IA
+    "AAPL": "Apple company",
+    "MSFT": "Microsoft company",
+    "GOOGL": "Alphabet Google",
+    "NVDA": "Nvidia company",
+    "TSM": "Taiwan Semiconductor",      
+    "ASML": "ASML Holding",             
+    "AMD": "AMD company",
+    "INTC": "Intel company",
+    
+    # Finanzas
+    "JPM": "JPMorgan Chase",
+    "BAC": "Bank of America",
+    "GS": "Goldman Sachs",
+    "V": "Visa company",
+    "MA": "Mastercard company",
+    
+    # Consumo
+    "AMZN": "Amazon company",
+    "WMT": "Walmart company",
+    "PG": "Procter & Gamble",
+    "KO": "Coca-Cola company",
+    "PEP": "PepsiCo",
+    "MCD": "McDonald's company",
+    "NKE": "Nike company",
+    
+    # Salud
+    "JNJ": "Johnson & Johnson",
+    "LLY": "Eli Lilly",                 
+    "PFE": "Pfizer company",
+    "MRK": "Merck company",
+    
+    # Entretenimiento y Videojuegos
+    "DIS": "Walt Disney company",
+    "NFLX": "Netflix company",
+    "META": "Meta Facebook",
+    "SONY": "Sony Group",               
+    "NTDOY": "Nintendo company",        
+    "EA": "Electronic Arts",            
+    "TTWO": "Take-Two Interactive"      
+}
+
+
 
 if __name__ == "__main__":
+    print("Initializing massive backfill process...")
+    
+    for ticker, topic in STOCKS_TO_TRACK.items():
+        print(f" Launching backfill for: {ticker} - {topic}")
         
-    execute_backfilling_pipeline("AAPL", "Apple stock", 25, "2026-07-12")
+        execute_backfilling_pipeline(ticker, topic, 25, "2026-07-12")
+        
+        print(f"Cooling down API limits before next company...")
+        time.sleep(10)
 
 
         
