@@ -16,6 +16,9 @@ def load_to_bigquery(df):
     Returns:
         bool: True if the load operation was successful, False otherwise.
     """
+    if df.empty:
+        print("El DataFrame está vacío. Se omite la carga para este activo.")
+        return False
 
     try:
         client_bq = bigquery.Client()

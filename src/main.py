@@ -1,6 +1,7 @@
 import extract
 import transform
 import load
+import time
 
 def run_etl_pipeline(ticker, topic):
 
