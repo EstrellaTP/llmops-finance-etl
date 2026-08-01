@@ -84,3 +84,24 @@ def create_sequences(df, sequence_length=14):
             y.append(target[i + sequence_length])
             
     return np.array(X), np.array(y)
+
+# "sentiement" fix
+def process_sentiment_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Transforms the sentiment variable by handling nulls through the 
+    creation of a missing indicator (mask) and filling with 0.0.
+    """
+    # Using 'Sentiment' exactly as it appears in the BigQuery table
+    col_name = 'Sentiment'
+    
+    if col_name in df.columns:
+        # 1. Create the missing indicator (Mask): 1.0 if data exists, 0.0 if null
+        df['sentiment_mask'] = df[col_name].notnull().astype(float)
+        
+        # 2. Numerically fill nulls with 0.0
+        df['sentiment_score'] = df[col_name].fillna(0.0)
+        
+        # 3. Drop the original column with nulls so it doesn't break the model
+        df = df.drop(columns=[col_name])
+        
+    return df
