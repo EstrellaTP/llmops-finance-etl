@@ -3,6 +3,21 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
+import joblib
+import os
+from google.cloud import storage
+
+def upload_artifact_to_gcs(project_id: str, bucket_name: str, source_file_name: str, destination_blob_name: str):
+    """
+    Uploads a local file (model weights or scaler) to a Google Cloud Storage bucket.
+    This ensures artifacts are kept out of version control.
+    """
+    client = storage.Client(project=project_id)
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    
+    blob.upload_from_filename(source_file_name)
+    print(f"Artifact successfully uploaded to GCS: gs://{bucket_name}/{destination_blob_name}")
 
 def walk_forward_split(X, y, train_ratio=0.8):
     """
@@ -37,16 +52,20 @@ def get_dataloaders(X_train, y_train, X_val, y_val, batch_size=32):
     
     return train_loader, val_loader
 
-def train_model(model, train_loader, val_loader, epochs=50, learning_rate=0.001, sector_name="default"):
+def train_model(model, train_loader, val_loader, scaler, project_id, bucket_name, epochs=50, learning_rate=0.001, sector_name="default"):
     """
-    Trains the GRU model using BCELoss and evaluates it chronologically 
-    on the validation set to monitor overfitting.
+    Trains the GRU model using Walk-Forward Validation and uploads the best 
+    weights and the fitted scaler to Google Cloud Storage (MLOps artifact management).
     """
-    # Using BCELoss because the FinancialGRU already applies a Sigmoid activation
+    # BCELoss expects probabilities between 0 and 1 (output of Sigmoid layer)
     criterion = nn.BCELoss() 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
     best_val_loss = float('inf')
+    
+    # Define local temporary filenames for the artifacts
+    weights_filename = f'weights_{sector_name}.pth'
+    scaler_filename = f'scaler_{sector_name}.pkl'
 
     for epoch in range(epochs):
         # --- TRAINING PHASE ---
@@ -64,7 +83,7 @@ def train_model(model, train_loader, val_loader, epochs=50, learning_rate=0.001,
             
         train_loss /= len(train_loader.dataset)
         
-        # Validation Phase
+        # --- VALIDATION PHASE ---
         model.eval()
         val_loss = 0.0
         
@@ -76,14 +95,26 @@ def train_model(model, train_loader, val_loader, epochs=50, learning_rate=0.001,
                 
         val_loss /= len(val_loader.dataset)
         
-        # Save the best model weights
+        # Save artifacts locally if current model achieves the best validation loss
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), f'weights_{sector_name}.pth')
+            torch.save(model.state_dict(), weights_filename)
+            joblib.dump(scaler, scaler_filename)
         
-        # Print progress
+        # Print progress every 10 epochs
         if (epoch + 1) % 10 == 0 or epoch == 0:
             print(f'Epoch [{epoch + 1}/{epochs}] | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}')
             
-    print(f"Training complete. Best Validation Loss: {best_val_loss:.4f}")
+    print(f"Training cycle completed. Best Validation Loss: {best_val_loss:.4f}")
+    
+    # Upload the best local artifacts to Google Cloud Storage
+    upload_artifact_to_gcs(project_id, bucket_name, weights_filename, f"models/{weights_filename}")
+    upload_artifact_to_gcs(project_id, bucket_name, scaler_filename, f"models/{scaler_filename}")
+    
+    # Clean up local temporary files to keep the GitHub Actions runner clean
+    if os.path.exists(weights_filename):
+        os.remove(weights_filename)
+    if os.path.exists(scaler_filename):
+        os.remove(scaler_filename)
+    
     return model

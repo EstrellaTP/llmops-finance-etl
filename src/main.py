@@ -1,4 +1,3 @@
-import os
 import time
 
 # We imported the original modules (Phases 1-3)
@@ -9,11 +8,12 @@ import src.load as load
 # We import the inference module (Phase 4)
 import src.models.predict as predict
 
-# GCP & Model Configurations (Best practice: use environment variables)
-PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your_project_id")
-DATASET_ID = os.getenv("GCP_DATASET_ID", "finance_dataset")
-SOURCE_TABLE = os.getenv("GCP_SOURCE_TABLE", "historical_prices")
-TARGET_TABLE = os.getenv("GCP_TARGET_TABLE", "model_predictions")
+# GCP & Model Configurations 
+PROJECT_ID = "your_project_id"
+DATASET_ID = "finance_dataset"
+SOURCE_TABLE = "historical_prices"
+TARGET_TABLE = "model_predictions"
+BUCKET_NAME = "your_model_bucket"
 
 # Neural Network hyperparameters (Must match architecture.py)
 INPUT_SIZE = 5 # daily_return, volatility_7d, log_vol_change, sentiment_momentum, RSI_14d
@@ -37,18 +37,15 @@ def run_etl_and_predict(ticker, topic, sector):
     print("ETL phase successfully finished. Data loaded to BigQuery.")
 
     # PHASE 4: Deep Learning Inference
-    weights_path = f"weights_{sector.lower().replace(' ', '_')}.pth"
-    scaler_path = f"scaler_{sector.lower().replace(' ', '_')}.pkl"
-    
     try:
         predict.run_daily_inference(
             project_id=PROJECT_ID, 
             dataset_id=DATASET_ID, 
+            bucket_name=BUCKET_NAME,
             source_table=SOURCE_TABLE, 
             target_table=TARGET_TABLE, 
             symbol=ticker, 
-            weights_path=weights_path, 
-            scaler_path=scaler_path, 
+            sector_name=sector,
             input_size=INPUT_SIZE, 
             hidden_size=HIDDEN_SIZE, 
             num_layers=NUM_LAYERS

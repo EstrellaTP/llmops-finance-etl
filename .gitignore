@@ -3,3 +3,4 @@ llmops-finance-etl-8c6f6256f328.json
 venv/
 __pycache__/
 *.pyc
+google-cloud-storage
