@@ -1,32 +1,76 @@
 
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+from google.cloud import bigquery
 
-# Data exctraction
-def download_data_from_bq(df):
-    pass
+# Data extraction
+def download_data_from_bq(project_id: str, dataset_id: str, table_id: str) -> pd.DataFrame:
+    """
+    Downloads historical data from Google BigQuery.
+    Assumes that authentication (Google Application Credentials) is already 
+    configured in the environment, as defined in Phase 3.
+    """
+    try:
+        # Initialize BigQuery client
+        client = bigquery.Client(project=project_id)
+        
+        # Build the SQL query to extract the entire ordered table
+        query = f"""
+            SELECT *
+            FROM `{project_id}.{dataset_id}.{table_id}`
+            ORDER BY symbol, date
+        """
+        
+        print(f"Downloading data from {project_id}.{dataset_id}.{table_id}...")
+        query_job = client.query(query)
+        df = query_job.to_dataframe()
+        
+        # Ensure the date column has the correct Pandas format
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+            
+        print(f"Download completed: {df.shape[0]} rows retrieved.")
+        return df
+        
+    except Exception as e:
+        print(f"Critical error connecting to BigQuery: {e}")
+        return pd.DataFrame()
 
+# "sentiment" fix
+def process_sentiment_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Transforms the sentiment variable by handling nulls through the 
+    creation of a missing indicator (mask) and filling with 0.0.
+    """
+    col_name = 'Sentiment'
+    
+    if col_name in df.columns:
+        df['sentiment_mask'] = df[col_name].notnull().astype(float)
+        df['sentiment_score'] = df[col_name].fillna(0.0)
+        df = df.drop(columns=[col_name])
+        
+    return df
 
 # Technical Variables
 def daily_return(df):
     df["daily_return"] = df.groupby("symbol")["close"].pct_change()
     return df
 
-
 def volatility(df):
     df["volatility_7d"] = df.groupby("symbol")["daily_return"].rolling(window=7).std().reset_index(level=0, drop=True)
     return df
 
-
 def RSI(df):
     delta = df.groupby('symbol')['close'].diff()
-    gains = np.where(delta > 0, delta, 0)
-    losses = np.where(delta < 0, -delta, 0)
+    # BUG FIX: Asignar al DataFrame antes de usar groupby
+    df['gains'] = np.where(delta > 0, delta, 0)
+    df['losses'] = np.where(delta < 0, -delta, 0)
 
     avg_gains = df.groupby('symbol')['gains'].rolling(window=14).mean().reset_index(level=0, drop=True)
     avg_losses = df.groupby('symbol')['losses'].rolling(window=14).mean().reset_index(level=0, drop=True)
 
-    rs = avg_gains/avg_losses
+    rs = avg_gains / (avg_losses + 1e-9) # Avoid division by zero
     df['RSI_14d'] = 100 - (100 / (1 + rs))
 
     df = df.drop(columns=['gains', 'losses'])
@@ -34,74 +78,98 @@ def RSI(df):
 
 def log_change_vol(df):
     prev_volume = df.groupby('symbol')['volume'].shift(1)
-    
-    df['log_vol_change'] = np.log(df['volume'] / prev_volume)
-
+    df['log_vol_change'] = np.log((df['volume'] + 1e-9) / (prev_volume + 1e-9))
     return df
-
 
 # Qualitative Variables
 def sentiment_momentum(df):
-    df["sentiment_momentum"] = df["sentiment"] - df.groupby("symbol")["sentiment"].rolling(window = 3).mean().reset_index(level=0,drop=True)
+    # BUG FIX: pointing to clean var 'sentiment_score'
+    if "sentiment_score" in df.columns:
+        df["sentiment_momentum"] = df["sentiment_score"] - df.groupby("symbol")["sentiment_score"].rolling(window=3).mean().reset_index(level=0, drop=True)
     return df
 
-# Temporal varibles
+# Temporal variables
 def cyclic_calendar_features(df):
-
     day_of_week = pd.to_datetime(df['date']).dt.dayofweek
-    
     df['day_sin'] = np.sin(2 * np.pi * day_of_week / 5)
     df['day_cos'] = np.cos(2 * np.pi * day_of_week / 5)
-    
     return df
-
 
 def calculate_target(df):
     precio_futuro = df.groupby('symbol')['close'].shift(-7)
-    
     df['target'] = np.where(precio_futuro > df['close'], 1, 0)
-    
     return df
 
+# Scaling Module (NEW)
+def scale_features(df):
+    """
+    Aplica StandardScaler a las variables continuas para estabilizar 
+    el gradiente en redes LSTM/GRU.
+    """
+    features_to_scale = [
+        'daily_return', 
+        'volatility_7d', 
+        'log_vol_change', 
+        'sentiment_momentum',
+        'RSI_14d' 
+    ]
+    
+    scaler = StandardScaler()
+    
+    for col in features_to_scale:
+        if col in df.columns:
+            df[col] = scaler.fit_transform(df[col].values.reshape(-1, 1))
+            
+    return df, scaler
+
+# Master Pipeline Orchestrator (NEW)
+def build_all_features(df):
+    """
+    Orquesta la ejecución secuencial de la ingeniería de variables,
+    asegurando que las dependencias entre funciones se respeten.
+    """
+    # Asegurar el orden cronológico estricto por símbolo
+    df = df.sort_values(by=['symbol', 'date']).reset_index(drop=True)
+    
+    # 1. Cualitative cleaning
+    df = process_sentiment_features(df)
+    
+    # 2. Technical Features
+    df = daily_return(df)
+    df = volatility(df)
+    df = RSI(df)
+    df = log_change_vol(df)
+    
+    # 3. Cualitative and Temporal Features
+    df = sentiment_momentum(df)
+    df = cyclic_calendar_features(df)
+    
+    # 4. Target of 7 days
+    df = calculate_target(df)
+    
+    # 5. BUG FIX: Clean up NaNs generated by shifts and rollings
+    # safely before scaling and creating tensors.
+    df = df.dropna().reset_index(drop=True)
+    
+    # 6. Final Scaling
+    df, scaler = scale_features(df)
+    
+    return df, scaler
 
 # Tensor transformation
 def create_sequences(df, sequence_length=14):
-    df = df.dropna()
-    
     
     feature_cols = [col for col in df.columns if col not in ['symbol', 'date', 'target']]
     
     X = [] # 14 day matrices
-    y = [] # Tarjet
+    y = [] # Target
     
     for symbol, group in df.groupby('symbol'):
         features = group[feature_cols].values
         target = group['target'].values
-        
         
         for i in range(len(group) - sequence_length):
             X.append(features[i:(i + sequence_length)])
             y.append(target[i + sequence_length])
             
     return np.array(X), np.array(y)
-
-# "sentiement" fix
-def process_sentiment_features(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Transforms the sentiment variable by handling nulls through the 
-    creation of a missing indicator (mask) and filling with 0.0.
-    """
-    # Using 'Sentiment' exactly as it appears in the BigQuery table
-    col_name = 'Sentiment'
-    
-    if col_name in df.columns:
-        # 1. Create the missing indicator (Mask): 1.0 if data exists, 0.0 if null
-        df['sentiment_mask'] = df[col_name].notnull().astype(float)
-        
-        # 2. Numerically fill nulls with 0.0
-        df['sentiment_score'] = df[col_name].fillna(0.0)
-        
-        # 3. Drop the original column with nulls so it doesn't break the model
-        df = df.drop(columns=[col_name])
-        
-    return df
