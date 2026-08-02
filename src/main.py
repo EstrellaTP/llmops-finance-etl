@@ -9,17 +9,17 @@ import src.load as load
 import src.models.predict as predict
 
 # GCP & Model Configurations 
-PROJECT_ID = "your_project_id"
-DATASET_ID = "finance_dataset"
-SOURCE_TABLE = "historical_prices"
-TARGET_TABLE = "model_predictions"
-BUCKET_NAME = "your_model_bucket"
+# GCP & Model Configurations
+PROJECT_ID = "llmops-finance-etl"
+DATASET_ID = "finance_etl_db"
+SOURCE_TABLE = "daily_market_data"
+TARGET_TABLE = "model_predictions" 
+BUCKET_NAME = "llmops-finance-models" 
 
 # Neural Network hyperparameters (Must match architecture.py)
 INPUT_SIZE = 5 # daily_return, volatility_7d, log_vol_change, sentiment_momentum, RSI_14d
 HIDDEN_SIZE = 64
 NUM_LAYERS = 1
-
 def run_etl_and_predict(ticker, topic, sector):
     print(f"\n--- Starting Pipeline for {ticker} ({sector}) ---")
     

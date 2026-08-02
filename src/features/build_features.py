@@ -7,30 +7,34 @@ from google.cloud import bigquery
 # Data extraction
 def download_data_from_bq(project_id: str, dataset_id: str, table_id: str) -> pd.DataFrame:
     """
-    Downloads historical data from Google BigQuery.
-    Assumes that authentication (Google Application Credentials) is already 
-    configured in the environment, as defined in Phase 3.
+    Downloads historical data from Google BigQuery and normalizes column names.
     """
     try:
-        # Initialize BigQuery client
         client = bigquery.Client(project=project_id)
         
-        # Build the SQL query to extract the entire ordered table
         query = f"""
             SELECT *
             FROM `{project_id}.{dataset_id}.{table_id}`
-            ORDER BY symbol, date
+            ORDER BY Ticker, Date
         """
         
         print(f"Downloading data from {project_id}.{dataset_id}.{table_id}...")
         query_job = client.query(query)
         df = query_job.to_dataframe()
         
-        # Ensure the date column has the correct Pandas format
+        # --- NORMALIZATION FOR BIGQUERY SCHEMA ---
+        # Convert all column names to lowercase to avoid casing issues (e.g., Close -> close)
+        df.columns = [col.lower() for col in df.columns]
+        
+        # If the table uses 'ticker' instead of 'symbol', rename it for consistency
+        if 'ticker' in df.columns and 'symbol' not in df.columns:
+            df = df.rename(columns={'ticker': 'symbol'})
+            
+        # Ensure date format is correct
         if 'date' in df.columns:
             df['date'] = pd.to_datetime(df['date'])
             
-        print(f"Download completed: {df.shape[0]} rows retrieved.")
+        print(f"Download completed: {df.shape[0]} rows retrieved and normalized.")
         return df
         
     except Exception as e:
