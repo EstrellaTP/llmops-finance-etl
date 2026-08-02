@@ -1,0 +1,37 @@
+name: Retrain Sectorial Models
+
+on:
+  # Permite disparar el entrenamiento manualmente desde la web de GitHub
+  workflow_dispatch: 
+  
+  schedule:
+    # Se ejecuta automáticamente los días 1 y 15 de cada mes a las 02:00 UTC
+    - cron: '0 2 1,15 * *'
+
+jobs:
+  run-retraining:
+    # Utilizamos el entorno estándar de Ubuntu proporcionado por GitHub Actions
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: docker build -t finance-etl .
+
+      - name: Create GCP Credentials File
+        # Recupera el secreto de GitHub y crea el archivo JSON localmente en el runner
+        run: |
+          echo "${{ secrets.GCP_CREDENTIALS }}" > gcp-key.json
+
+      - name: Run Docker Container (Training Mode)
+        # Ejecuta el contenedor sobrescribiendo el comando por defecto (CMD) del Dockerfile.
+        # Inyecta las credenciales, configura PYTHONPATH y lanza train.py como módulo.
+        run: |
+          docker run \
+            -e GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-key.json \
+            -e PYTHONPATH=/app \
+            -v ${{ github.workspace }}/gcp-key.json:/app/gcp-key.json \
+            finance-etl \
+            python -m src.models.train
