@@ -1,5 +1,5 @@
 
-import torch.nn as nn
+import torch.nn
 import pandas as pd
 import numpy as np
 from google.cloud import bigquery
