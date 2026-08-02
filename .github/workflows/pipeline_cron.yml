@@ -1,9 +1,9 @@
 name: Daily Finance ETL Pipeline
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 21 * * *'
-  workflow_dispatch: 
 
 jobs:
   run-pipeline:
