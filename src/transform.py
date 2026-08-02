@@ -1,6 +1,6 @@
 
 import pandas as pd
-import extract
+from src import extract
 import google.generativeai as genai
 import os
 from dotenv import load_dotenv
